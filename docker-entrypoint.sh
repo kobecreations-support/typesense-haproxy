@@ -10,6 +10,9 @@ if [ -z "${TYPESENSE_BACKENDS:-}" ]; then
     exit 1
 fi
 
+echo "TYPESENSE_BACKENDS=${TYPESENSE_BACKENDS}"
+echo "HAProxy listen port: ${LISTEN_PORT}"
+
 cat > "$CONFIG_FILE" <<EOF
 global
     log stdout format raw local0
@@ -27,20 +30,6 @@ defaults
     timeout server 60s
     timeout http-request 15s
 
-resolvers render_dns
-    parse-resolv-conf
-
-    resolve_retries 3
-    timeout resolve 1s
-    timeout retry 1s
-
-    hold valid 10s
-    hold other 30s
-    hold refused 30s
-    hold nx 30s
-    hold timeout 30s
-    hold obsolete 30s
-
 frontend typesense_frontend
     bind 0.0.0.0:${LISTEN_PORT}
     default_backend typesense_backends
@@ -50,24 +39,28 @@ backend typesense_backends
 
     option httpchk GET /health
     http-check expect status 200
+    option log-health-checks
+
+    # Temporary debugging header showing which Typesense server responded.
+    http-response set-header X-Typesense-Backend %[srv_name]
 
     default-server inter 3s fall 3 rise 2
 EOF
 
-old_ifs="$IFS"
+OLD_IFS="$IFS"
 IFS=","
 
 index=1
 
 for backend in $TYPESENSE_BACKENDS; do
-    # Remove surrounding whitespace.
+    # Remove leading and trailing whitespace.
     backend="$(echo "$backend" | xargs)"
 
     if [ -z "$backend" ]; then
         continue
     fi
 
-    # Only allow hostname:port characters.
+    # Validate hostname:port characters.
     case "$backend" in
         *[!A-Za-z0-9._:-]*)
             echo "ERROR: Invalid backend value: $backend"
@@ -75,21 +68,29 @@ for backend in $TYPESENSE_BACKENDS; do
             ;;
     esac
 
-    echo "    server typesense_${index} ${backend} check resolvers render_dns init-addr last,libc,none" \
+    echo "Adding backend typesense_${index}: ${backend}"
+
+    # Do not use HAProxy's custom resolvers section.
+    # HAProxy will resolve the hostname through the container's normal libc DNS.
+    echo "    server typesense_${index} ${backend} check" \
         >> "$CONFIG_FILE"
 
     index=$((index + 1))
 done
 
-IFS="$old_ifs"
+IFS="$OLD_IFS"
 
 if [ "$index" -eq 1 ]; then
     echo "ERROR: No valid Typesense backends were configured."
     exit 1
 fi
 
+echo ""
 echo "Generated HAProxy configuration:"
+echo "--------------------------------"
 cat "$CONFIG_FILE"
+echo "--------------------------------"
+echo ""
 
 echo "Validating HAProxy configuration..."
 
