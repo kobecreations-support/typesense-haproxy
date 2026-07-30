@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: detroitaxle-typesense-haproxy
+    runtime: docker
+    plan: starter
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: TYPESENSE_BACKENDS
+        value: detroitaxle-typesense-production:8107,detroitaxle-typesense-production-2:8107
