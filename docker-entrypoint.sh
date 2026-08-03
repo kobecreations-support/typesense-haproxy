@@ -16,7 +16,7 @@ echo "HAProxy listen port: ${LISTEN_PORT}"
 cat > "$CONFIG_FILE" <<EOF
 global
     log stdout format raw local0
-    maxconn 4096
+    maxconn 40000
 
 defaults
     log global
