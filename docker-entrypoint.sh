@@ -26,6 +26,7 @@ defaults
     option dontlognull
 
     timeout connect 5s
+    timeout check 10s
     timeout client 60s
     timeout server 60s
     timeout http-request 15s
@@ -44,7 +45,7 @@ backend typesense_backends
     # Temporary debugging header showing which Typesense server responded.
     http-response set-header X-Typesense-Backend %[srv_name]
 
-    default-server inter 3s fall 3 rise 2
+    default-server inter 5s fall 3 rise 2
 EOF
 
 OLD_IFS="$IFS"
