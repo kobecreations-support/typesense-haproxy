@@ -45,7 +45,7 @@ backend typesense_backends
     # Temporary debugging header showing which Typesense server responded.
     http-response set-header X-Typesense-Backend %[srv_name]
 
-    default-server inter 5s fall 3 rise 2
+    default-server inter 1s fall 3 rise 2
 EOF
 
 OLD_IFS="$IFS"
